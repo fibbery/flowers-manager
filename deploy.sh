@@ -104,7 +104,7 @@ case $choice in
         cd backend
         pm2 stop flowers-manager 2>/dev/null || true
         pm2 delete flowers-manager 2>/dev/null || true
-        pm2 start server.js --name flowers-manager
+        pm2 start server-prod.js --name flowers-manager
         pm2 save
         
         echo ""
@@ -135,7 +135,7 @@ case $choice in
         fi
         
         # 使用 nohup 启动
-        nohup node server.js > flowers-manager.log 2>&1 &
+        nohup node server-prod.js > flowers-manager.log 2>&1 &
         echo $! > flowers-manager.pid
         
         echo ""
@@ -162,7 +162,7 @@ case $choice in
         echo ""
         echo -e "${YELLOW}⚠️  按 Ctrl+C 可以停止服务${NC}"
         echo ""
-        node server.js
+        node server-prod.js
         ;;
     
     *)
