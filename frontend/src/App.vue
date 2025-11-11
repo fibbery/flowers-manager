@@ -34,17 +34,69 @@
       <div class="unified-search">
         <div class="search-box-unified">
           <div class="search-input-group-unified">
-            <input
-              type="text"
-              v-model="searchKeyword"
-              placeholder="输入人名或花名进行查询（支持模糊匹配，留空显示全部）"
-              @keyup.enter="performSearch"
-            />
+            <div class="search-input-wrapper">
+              <input
+                type="text"
+                v-model="searchKeyword"
+                placeholder="输入人名或花名进行查询（支持模糊匹配，留空显示全部）"
+                @keyup.enter="performSearch"
+                @input="handleSearchInput"
+                @focus="showSuggestions = true"
+                @keydown.down.prevent="navigateSuggestions('down')"
+                @keydown.up.prevent="navigateSuggestions('up')"
+                ref="searchInput"
+              />
+              
+              <!-- 下拉建议列表 -->
+              <transition name="dropdown-fade">
+                <div 
+                  v-if="showSuggestions && (filteredSuggestions.persons.length > 0 || filteredSuggestions.flowers.length > 0)" 
+                  class="suggestions-dropdown"
+                  @mousedown.prevent
+                >
+                  <!-- 人名建议 -->
+                  <div v-if="filteredSuggestions.persons.length > 0" class="suggestions-group">
+                    <div class="suggestions-group-title">👤 人名</div>
+                    <div
+                      v-for="(person, index) in filteredSuggestions.persons"
+                      :key="'person-' + person.id"
+                      class="suggestion-item"
+                      :class="{ 'suggestion-item-active': selectedSuggestionIndex === index }"
+                      @click="selectSuggestion(person.name)"
+                      @mouseenter="selectedSuggestionIndex = index"
+                    >
+                      <span class="suggestion-icon">👤</span>
+                      <span class="suggestion-text">{{ person.name }}</span>
+                      <span class="suggestion-count">{{ person.flowers.length }} 朵花</span>
+                    </div>
+                  </div>
+                  
+                  <!-- 花名建议 -->
+                  <div v-if="filteredSuggestions.flowers.length > 0" class="suggestions-group">
+                    <div class="suggestions-group-title">🌺 花名</div>
+                    <div
+                      v-for="(flower, index) in filteredSuggestions.flowers"
+                      :key="'flower-' + flower.name"
+                      class="suggestion-item"
+                      :class="{ 'suggestion-item-active': selectedSuggestionIndex === filteredSuggestions.persons.length + index }"
+                      @click="selectSuggestion(flower.name)"
+                      @mouseenter="selectedSuggestionIndex = filteredSuggestions.persons.length + index"
+                    >
+                      <span class="suggestion-icon">🌺</span>
+                      <span class="suggestion-text">{{ flower.name }}</span>
+                      <span class="suggestion-count">
+                        {{ flower.firstOwner }}{{ flower.count > 1 ? `等 ${flower.count} 人` : '' }}拥有
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
             <button class="btn btn-primary" @click="performSearch">
               🔍 搜索
             </button>
           </div>
-          <p class="search-hint">💡 自动同时搜索人名和花名，显示所有匹配结果</p>
+          <p class="search-hint">💡 输入时显示建议列表，点击即可快速搜索</p>
         </div>
       </div>
 
@@ -217,7 +269,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
 
 export default {
@@ -248,10 +300,62 @@ export default {
     const searchKeyword = ref('')
     const searchResults = ref([])
     const searchMessage = ref('')
+    const showSuggestions = ref(false)
+    const selectedSuggestionIndex = ref(-1)
+    const searchInput = ref(null)
     
     // 显示结果：如果有搜索结果显示搜索结果，否则显示所有人员
     const displayResults = computed(() => {
       return searchResults.value.length > 0 ? searchResults.value : persons.value
+    })
+    
+    // 过滤建议列表
+    const filteredSuggestions = computed(() => {
+      const keyword = searchKeyword.value.trim().toLowerCase()
+      
+      if (!keyword || keyword.length === 0) {
+        return { persons: [], flowers: [] }
+      }
+      
+      // 过滤人名
+      const matchedPersons = persons.value
+        .filter(p => p.name.toLowerCase().includes(keyword))
+        .slice(0, 5) // 最多显示5个
+      
+      // 收集所有花朵并统计，同时记录拥有者
+      const flowersMap = new Map()
+      persons.value.forEach(person => {
+        person.flowers.forEach(flower => {
+          const flowerName = flower.name.toLowerCase()
+          if (flowerName.includes(keyword)) {
+            if (flowersMap.has(flower.name)) {
+              const data = flowersMap.get(flower.name)
+              data.count += 1
+              data.owners.push(person.name)
+            } else {
+              flowersMap.set(flower.name, {
+                count: 1,
+                owners: [person.name]
+              })
+            }
+          }
+        })
+      })
+      
+      // 转换为数组并排序
+      const matchedFlowers = Array.from(flowersMap.entries())
+        .map(([name, data]) => ({ 
+          name, 
+          count: data.count,
+          firstOwner: data.owners[0] // 第一个拥有者
+        }))
+        .sort((a, b) => b.count - a.count) // 按拥有人数排序
+        .slice(0, 5) // 最多显示5个
+      
+      return {
+        persons: matchedPersons,
+        flowers: matchedFlowers
+      }
     })
 
     // 快速添加花朵相关状态
@@ -580,11 +684,60 @@ export default {
       searchResults.value = []
       searchMessage.value = ''
       searchKeyword.value = ''
+      showSuggestions.value = false
+      selectedSuggestionIndex.value = -1
+    }
+    
+    // 处理搜索输入
+    const handleSearchInput = () => {
+      showSuggestions.value = true
+      selectedSuggestionIndex.value = -1
+    }
+    
+    // 选择建议项
+    const selectSuggestion = (text) => {
+      searchKeyword.value = text
+      showSuggestions.value = false
+      selectedSuggestionIndex.value = -1
+      performSearch()
+    }
+    
+    // 键盘导航建议列表
+    const navigateSuggestions = (direction) => {
+      const totalSuggestions = 
+        filteredSuggestions.value.persons.length + 
+        filteredSuggestions.value.flowers.length
+      
+      if (totalSuggestions === 0) return
+      
+      if (direction === 'down') {
+        selectedSuggestionIndex.value = 
+          (selectedSuggestionIndex.value + 1) % totalSuggestions
+      } else if (direction === 'up') {
+        selectedSuggestionIndex.value = 
+          selectedSuggestionIndex.value <= 0 
+            ? totalSuggestions - 1 
+            : selectedSuggestionIndex.value - 1
+      }
+    }
+    
+    // 点击外部关闭建议框
+    const handleClickOutside = (event) => {
+      if (searchInput.value && !searchInput.value.contains(event.target)) {
+        showSuggestions.value = false
+      }
     }
 
     // 组件挂载时获取数据
     onMounted(() => {
       fetchPersons()
+      // 添加点击外部关闭建议框的监听
+      document.addEventListener('click', handleClickOutside)
+    })
+    
+    // 组件卸载时移除监听
+    onUnmounted(() => {
+      document.removeEventListener('click', handleClickOutside)
     })
 
     return {
@@ -604,9 +757,16 @@ export default {
       searchResults,
       searchMessage,
       displayResults,
+      showSuggestions,
+      selectedSuggestionIndex,
+      filteredSuggestions,
+      searchInput,
       performSearch,
       clearSearch,
       switchToSearch,
+      handleSearchInput,
+      selectSuggestion,
+      navigateSuggestions,
       showQuickAddModal,
       quickAddPerson,
       newFlowerName,
