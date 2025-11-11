@@ -2,68 +2,97 @@
   <div class="container">
     <h1>🌸 花朵管理系统</h1>
 
-    <!-- 错误提示 -->
-    <div v-if="error" class="error">
-      {{ error }}
-    </div>
+    <!-- Toast 提示 -->
+    <transition name="toast-fade">
+      <div v-if="toast.show" class="toast" :class="toast.type">
+        <span class="toast-icon">{{ toast.icon }}</span>
+        <span class="toast-message">{{ toast.message }}</span>
+      </div>
+    </transition>
 
-    <!-- 成功提示 -->
-    <div v-if="success" class="success">
-      {{ success }}
+    <!-- Tab 导航 -->
+    <div class="tabs">
+      <button 
+        class="tab-button" 
+        :class="{ active: activeTab === 'search' }"
+        @click="switchToSearch"
+      >
+        🔍 查询
+      </button>
+      <button 
+        class="tab-button" 
+        :class="{ active: activeTab === 'add' }"
+        @click="activeTab = 'add'"
+      >
+        ➕ {{ isEditing ? '编辑人员' : '添加人员' }}
+      </button>
     </div>
 
     <!-- 查询区域 -->
-    <div class="search-section">
-      <h2>🔍 查询功能</h2>
-      <div class="search-forms">
-        <!-- 根据人名查询花朵 -->
-        <div class="search-box">
-          <h3>根据人名查花朵</h3>
-          <div class="search-input-group">
+    <div v-show="activeTab === 'search'" class="tab-content search-section">
+      <h2>🔍 智能查询</h2>
+      <div class="unified-search">
+        <div class="search-box-unified">
+          <div class="search-input-group-unified">
             <input
               type="text"
-              v-model="searchPersonName"
-              placeholder="输入人名（支持模糊查询）"
-              @keyup.enter="searchByPerson"
+              v-model="searchKeyword"
+              placeholder="输入人名或花名进行查询（支持模糊匹配，留空显示全部）"
+              @keyup.enter="performSearch"
             />
-            <button class="btn btn-primary" @click="searchByPerson">
-              查询
+            <button class="btn btn-primary" @click="performSearch">
+              🔍 搜索
             </button>
           </div>
-        </div>
-
-        <!-- 根据花名查询人 -->
-        <div class="search-box">
-          <h3>根据花名查拥有者</h3>
-          <div class="search-input-group">
-            <input
-              type="text"
-              v-model="searchFlowerName"
-              placeholder="输入花名（支持模糊查询）"
-              @keyup.enter="searchByFlower"
-            />
-            <button class="btn btn-primary" @click="searchByFlower">
-              查询
-            </button>
-          </div>
+          <p class="search-hint">💡 自动同时搜索人名和花名，显示所有匹配结果</p>
         </div>
       </div>
 
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading">
+        加载中...
+      </div>
+
       <!-- 查询结果 -->
-      <div v-if="searchResults.length > 0" class="search-results">
+      <div v-else-if="displayResults.length > 0" class="search-results">
         <div class="search-results-header">
           <h3>
-            {{ searchMessage || '查询结果' }} 
-            <span class="result-count">（共 {{ searchResults.length }} 条）</span>
+            {{ searchMessage || '所有人员' }} 
+            <span class="result-count">（共 {{ displayResults.length }} 条）</span>
           </h3>
-          <button class="btn btn-secondary btn-small" @click="clearSearch">
-            清除结果
+          <button 
+            v-if="searchKeyword" 
+            class="btn btn-secondary btn-small" 
+            @click="clearSearch"
+          >
+            清除搜索
           </button>
         </div>
         <div class="persons-grid">
-          <div v-for="person in searchResults" :key="'search-' + person.id" class="person-card search-result-card">
+          <div v-for="person in displayResults" :key="person.id" class="person-card">
             <div class="person-header">
               <h3 class="person-name">{{ person.name }}</h3>
+              <div class="person-actions">
+                <button
+                  class="btn btn-success btn-small"
+                  @click="showQuickAddFlower(person)"
+                  title="快速添加花朵"
+                >
+                  ➕ 花
+                </button>
+                <button
+                  class="btn btn-warning btn-small"
+                  @click="editPerson(person)"
+                >
+                  编辑
+                </button>
+                <button
+                  class="btn btn-danger btn-small"
+                  @click="deletePerson(person.id, person.name)"
+                >
+                  删除
+                </button>
+              </div>
             </div>
             <div class="flowers-section">
               <h4>拥有的花朵：</h4>
@@ -72,6 +101,7 @@
                   v-for="flower in person.flowers"
                   :key="flower.id"
                   class="flower-tag"
+                  :class="{ 'flower-tag-highlight': flower.matched }"
                 >
                   🌺 {{ flower.name }}
                 </span>
@@ -84,13 +114,15 @@
         </div>
       </div>
       
-      <div v-else-if="searchMessage" class="search-no-results">
-        {{ searchMessage }}
+      <!-- 空状态 -->
+      <div v-else class="empty-state">
+        <div class="empty-state-icon">🌼</div>
+        <p>{{ searchMessage || '还没有添加任何人员，点击"添加人员"标签开始添加吧！' }}</p>
       </div>
     </div>
 
     <!-- 添加/编辑表单 -->
-    <div class="add-form">
+    <div v-show="activeTab === 'add'" class="tab-content add-form">
       <h2>{{ isEditing ? '编辑人员' : '添加新人员' }}</h2>
       <form @submit.prevent="submitForm">
         <div class="form-group">
@@ -145,60 +177,47 @@
       </form>
     </div>
 
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading">
-      加载中...
-    </div>
 
-    <!-- 人员列表 -->
-    <div v-else-if="persons.length > 0" class="persons-grid">
-      <div v-for="person in persons" :key="person.id" class="person-card">
-        <div class="person-header">
-          <h3 class="person-name">{{ person.name }}</h3>
-          <div class="person-actions">
-            <button
-              class="btn btn-warning btn-small"
-              @click="editPerson(person)"
-            >
-              编辑
-            </button>
-            <button
-              class="btn btn-danger btn-small"
-              @click="deletePerson(person.id, person.name)"
-            >
-              删除
-            </button>
-          </div>
+    <!-- 快速添加花朵弹窗 -->
+    <div v-if="showQuickAddModal" class="modal-overlay" @click="closeQuickAddModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>给 {{ quickAddPerson.name }} 添加花朵</h3>
+          <button class="close-btn" @click="closeQuickAddModal">✕</button>
         </div>
-
-        <div class="flowers-section">
-          <h4>拥有的花朵：</h4>
-          <div v-if="person.flowers && person.flowers.length > 0" class="flowers-list">
-            <span
-              v-for="flower in person.flowers"
-              :key="flower.id"
-              class="flower-tag"
-            >
-              🌺 {{ flower.name }}
-            </span>
+        <div class="modal-body">
+          <div class="current-flowers" v-if="quickAddPerson.flowers && quickAddPerson.flowers.length > 0">
+            <h4>当前拥有的花朵：</h4>
+            <div class="flowers-list">
+              <span v-for="flower in quickAddPerson.flowers" :key="flower.id" class="flower-tag">
+                🌺 {{ flower.name }}
+              </span>
+            </div>
           </div>
-          <div v-else class="empty-flowers">
-            暂无花朵
+          <div class="quick-add-form">
+            <label>添加新花朵</label>
+            <div class="quick-add-input-group">
+              <input
+                type="text"
+                v-model="newFlowerName"
+                placeholder="输入花朵名称"
+                @keyup.enter="quickAddFlower"
+                ref="quickAddInput"
+              />
+              <button class="btn btn-primary" @click="quickAddFlower">
+                添加
+              </button>
+            </div>
+            <p class="help-text">💡 提示：系统会自动检查重复</p>
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else class="empty-state">
-      <div class="empty-state-icon">🌼</div>
-      <p>还没有添加任何人员，点击上方表单开始添加吧！</p>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import axios from 'axios'
 
 export default {
@@ -206,51 +225,82 @@ export default {
   setup() {
     const persons = ref([])
     const loading = ref(false)
-    const error = ref('')
-    const success = ref('')
     const isEditing = ref(false)
     const editingId = ref(null)
+    
+    // Toast 提示状态
+    const toast = ref({
+      show: false,
+      message: '',
+      type: 'success', // success, error, info
+      icon: '✓'
+    })
     
     const form = ref({
       name: '',
       flowers: []
     })
 
+    // Tab 相关状态
+    const activeTab = ref('search')
+
     // 查询相关状态
-    const searchPersonName = ref('')
-    const searchFlowerName = ref('')
+    const searchKeyword = ref('')
     const searchResults = ref([])
     const searchMessage = ref('')
+    
+    // 显示结果：如果有搜索结果显示搜索结果，否则显示所有人员
+    const displayResults = computed(() => {
+      return searchResults.value.length > 0 ? searchResults.value : persons.value
+    })
+
+    // 快速添加花朵相关状态
+    const showQuickAddModal = ref(false)
+    const quickAddPerson = ref({})
+    const newFlowerName = ref('')
+    const quickAddInput = ref(null)
 
     // API 基础 URL - 生产环境使用相对路径
     const API_BASE = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3000/api'
 
-    // 清除提示信息
-    const clearMessages = () => {
-      error.value = ''
-      success.value = ''
+    // Toast 提示函数
+    const showToast = (message, type = 'success') => {
+      const icons = {
+        success: '✓',
+        error: '✕',
+        info: 'ℹ'
+      }
+      
+      toast.value = {
+        show: true,
+        message,
+        type,
+        icon: icons[type]
+      }
+      
+      setTimeout(() => {
+        toast.value.show = false
+      }, type === 'error' ? 4000 : 2500)
     }
 
     // 显示错误信息
     const showError = (message) => {
-      error.value = message
-      setTimeout(() => {
-        error.value = ''
-      }, 5000)
+      showToast(message, 'error')
     }
 
     // 显示成功信息
     const showSuccess = (message) => {
-      success.value = message
-      setTimeout(() => {
-        success.value = ''
-      }, 3000)
+      showToast(message, 'success')
+    }
+
+    // 显示提示信息
+    const showInfo = (message) => {
+      showToast(message, 'info')
     }
 
     // 获取所有人员
     const fetchPersons = async () => {
       loading.value = true
-      clearMessages()
       try {
         const response = await axios.get(`${API_BASE}/persons`)
         persons.value = response.data
@@ -283,8 +333,6 @@ export default {
 
     // 提交表单
     const submitForm = async () => {
-      clearMessages()
-      
       if (!form.value.name.trim()) {
         showError('请输入人员姓名')
         return
@@ -326,13 +374,89 @@ export default {
         flowers: person.flowers.map(f => ({ name: f.name }))
       }
       
-      // 滚动到表单
+      // 切换到添加Tab
+      activeTab.value = 'add'
+      
+      // 滚动到顶部
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     // 取消编辑
     const cancelEdit = () => {
       resetForm()
+      activeTab.value = 'search'
+    }
+
+    // 显示快速添加花朵弹窗
+    const showQuickAddFlower = async (person) => {
+      quickAddPerson.value = person
+      newFlowerName.value = ''
+      showQuickAddModal.value = true
+      
+      // 等待DOM更新后聚焦输入框
+      await nextTick()
+      if (quickAddInput.value) {
+        quickAddInput.value.focus()
+      }
+    }
+
+    // 关闭快速添加弹窗
+    const closeQuickAddModal = () => {
+      showQuickAddModal.value = false
+      quickAddPerson.value = {}
+      newFlowerName.value = ''
+    }
+
+    // 快速添加花朵
+    const quickAddFlower = async () => {
+      const flowerName = newFlowerName.value.trim()
+      
+      if (!flowerName) {
+        showError('请输入花朵名称')
+        return
+      }
+
+      // 检查是否重复
+      const existingFlowers = quickAddPerson.value.flowers || []
+      const isDuplicate = existingFlowers.some(f => f.name === flowerName)
+      
+      if (isDuplicate) {
+        showError(`"${flowerName}" 已经存在于 ${quickAddPerson.value.name} 的花朵列表中`)
+        return
+      }
+
+      try {
+        // 合并现有花朵和新花朵
+        const allFlowers = [
+          ...existingFlowers.map(f => ({ name: f.name })),
+          { name: flowerName }
+        ]
+
+        // 更新人员信息
+        await axios.put(`${API_BASE}/persons/${quickAddPerson.value.id}`, {
+          name: quickAddPerson.value.name,
+          flowers: allFlowers
+        })
+
+        showSuccess(`成功为 ${quickAddPerson.value.name} 添加花朵 "${flowerName}"！`)
+        newFlowerName.value = ''
+        
+        // 刷新列表
+        await fetchPersons()
+        
+        // 更新弹窗中显示的人员信息
+        const updatedPerson = persons.value.find(p => p.id === quickAddPerson.value.id)
+        if (updatedPerson) {
+          quickAddPerson.value = updatedPerson
+        }
+        
+        // 聚焦输入框以便继续添加
+        if (quickAddInput.value) {
+          quickAddInput.value.focus()
+        }
+      } catch (err) {
+        showError(err.response?.data?.error || err.message)
+      }
     }
 
     // 删除人员
@@ -341,7 +465,6 @@ export default {
         return
       }
 
-      clearMessages()
       try {
         await axios.delete(`${API_BASE}/persons/${id}`)
         showSuccess('删除成功！')
@@ -351,28 +474,90 @@ export default {
       }
     }
 
-    // 根据人名查询花朵
-    const searchByPerson = async () => {
-      if (!searchPersonName.value.trim()) {
-        showError('请输入人员姓名')
+    // 统一智能搜索
+    const performSearch = async () => {
+      const keyword = searchKeyword.value.trim()
+      
+      // 如果关键词为空，清除搜索结果，显示所有人员
+      if (!keyword) {
+        searchResults.value = []
+        searchMessage.value = ''
         return
       }
 
-      clearMessages()
       loading.value = true
       searchResults.value = []
       searchMessage.value = ''
 
       try {
-        const response = await axios.get(`${API_BASE}/search/person`, {
-          params: { name: searchPersonName.value }
+        // 同时查询人名和花名
+        const [personResponse, flowerResponse] = await Promise.all([
+          axios.get(`${API_BASE}/search/person`, { params: { name: keyword } }),
+          axios.get(`${API_BASE}/search/flower`, { params: { name: keyword } })
+        ])
+        
+        // 合并结果并标记匹配的花朵
+        const resultsMap = new Map()
+        const matchedFlowersByPerson = new Map() // 记录每个人匹配的花朵ID
+        
+        // 处理人名搜索结果
+        if (personResponse.data.results && personResponse.data.results.length > 0) {
+          personResponse.data.results.forEach(person => {
+            // 获取完整的人员信息（包含所有花朵）
+            const fullPerson = persons.value.find(p => p.id === person.id)
+            if (fullPerson) {
+              resultsMap.set(person.id, { ...fullPerson })
+            }
+          })
+        }
+        
+        // 处理花名搜索结果
+        if (flowerResponse.data.results && flowerResponse.data.results.length > 0) {
+          flowerResponse.data.results.forEach(person => {
+            // 获取完整的人员信息
+            const fullPerson = persons.value.find(p => p.id === person.id)
+            if (fullPerson) {
+              // 记录哪些花朵是匹配的
+              const matchedFlowers = person.flowers.map(f => f.id)
+              matchedFlowersByPerson.set(person.id, matchedFlowers)
+              
+              if (!resultsMap.has(person.id)) {
+                resultsMap.set(person.id, { ...fullPerson })
+              }
+            }
+          })
+        }
+        
+        // 转换为数组并标记匹配的花朵
+        const mergedResults = Array.from(resultsMap.values()).map(person => {
+          const matchedFlowers = matchedFlowersByPerson.get(person.id) || []
+          return {
+            ...person,
+            flowers: person.flowers.map(flower => ({
+              ...flower,
+              matched: matchedFlowers.includes(flower.id)
+            }))
+          }
         })
         
-        if (response.data.results && response.data.results.length > 0) {
-          searchResults.value = response.data.results
-          searchMessage.value = `找到 ${response.data.results.length} 个匹配的人员`
+        if (mergedResults.length > 0) {
+          searchResults.value = mergedResults
+          const personCount = personResponse.data.results?.length || 0
+          const flowerCount = flowerResponse.data.results?.length || 0
+          
+          let message = `找到 ${mergedResults.length} 个匹配结果`
+          if (personCount > 0 && flowerCount > 0) {
+            message += ` (人名: ${personCount}，花名: ${flowerCount})`
+          } else if (personCount > 0) {
+            message += ` (匹配人名)`
+          } else if (flowerCount > 0) {
+            message += ` (匹配花名)`
+          }
+          
+          searchMessage.value = message
         } else {
-          searchMessage.value = response.data.message || '未找到匹配的人员'
+          searchResults.value = []
+          searchMessage.value = '未找到匹配的人员或花朵'
         }
       } catch (err) {
         showError('查询失败: ' + (err.response?.data?.error || err.message))
@@ -380,34 +565,13 @@ export default {
         loading.value = false
       }
     }
-
-    // 根据花名查询拥有者
-    const searchByFlower = async () => {
-      if (!searchFlowerName.value.trim()) {
-        showError('请输入花朵名称')
-        return
-      }
-
-      clearMessages()
-      loading.value = true
-      searchResults.value = []
-      searchMessage.value = ''
-
-      try {
-        const response = await axios.get(`${API_BASE}/search/flower`, {
-          params: { name: searchFlowerName.value }
-        })
-        
-        if (response.data.results && response.data.results.length > 0) {
-          searchResults.value = response.data.results
-          searchMessage.value = `找到 ${response.data.results.length} 个拥有该花朵的人员`
-        } else {
-          searchMessage.value = response.data.message || '未找到匹配的花朵'
-        }
-      } catch (err) {
-        showError('查询失败: ' + (err.response?.data?.error || err.message))
-      } finally {
-        loading.value = false
+    
+    // 切换到查询Tab
+    const switchToSearch = () => {
+      activeTab.value = 'search'
+      // 如果没有搜索结果，确保显示所有人员
+      if (searchResults.value.length === 0 && !searchKeyword.value) {
+        searchMessage.value = ''
       }
     }
 
@@ -415,8 +579,7 @@ export default {
     const clearSearch = () => {
       searchResults.value = []
       searchMessage.value = ''
-      searchPersonName.value = ''
-      searchFlowerName.value = ''
+      searchKeyword.value = ''
     }
 
     // 组件挂载时获取数据
@@ -427,23 +590,30 @@ export default {
     return {
       persons,
       loading,
-      error,
-      success,
+      toast,
       form,
       isEditing,
+      activeTab,
       addFlowerToForm,
       removeFlowerFromForm,
       submitForm,
       editPerson,
       cancelEdit,
       deletePerson,
-      searchPersonName,
-      searchFlowerName,
+      searchKeyword,
       searchResults,
       searchMessage,
-      searchByPerson,
-      searchByFlower,
-      clearSearch
+      displayResults,
+      performSearch,
+      clearSearch,
+      switchToSearch,
+      showQuickAddModal,
+      quickAddPerson,
+      newFlowerName,
+      quickAddInput,
+      showQuickAddFlower,
+      closeQuickAddModal,
+      quickAddFlower
     }
   }
 }
