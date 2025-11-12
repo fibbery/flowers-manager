@@ -40,3 +40,6 @@ Thumbs.db
 *.temp
 
 public/
+
+start-*.sh
+.env.*
