@@ -26,6 +26,13 @@
       >
         ➕ {{ isEditing ? '编辑人员' : '添加人员' }}
       </button>
+      <button 
+        class="tab-button" 
+        :class="{ active: activeTab === 'library' }"
+        @click="activeTab = 'library'"
+      >
+        🌺 花库管理
+      </button>
     </div>
 
     <!-- 查询区域 -->
@@ -173,6 +180,53 @@
       </div>
     </div>
 
+    <!-- 花库管理 -->
+    <div v-show="activeTab === 'library'" class="tab-content flower-library-section">
+      <h2>🌺 花库管理</h2>
+      
+      <!-- 添加新花到花库 -->
+      <div class="library-add-form">
+        <div class="library-input-group">
+          <input
+            type="text"
+            v-model="newLibraryFlower"
+            placeholder="输入新花朵名称（如：玫瑰、栀子花）"
+            @keyup.enter="addToLibrary"
+          />
+          <button class="btn btn-primary" @click="addToLibrary">
+            ➕ 添加到花库
+          </button>
+        </div>
+      </div>
+
+      <!-- 花库列表 -->
+      <div v-if="flowerLibrary.length > 0" class="library-list">
+        <div class="library-header">
+          <h3>花库列表 <span class="result-count">（共 {{ flowerLibrary.length }} 种）</span></h3>
+        </div>
+        <div class="library-grid">
+          <div v-for="flower in flowerLibrary" :key="flower.id" class="library-card">
+            <span class="library-flower-name">🌺 {{ flower.name }}</span>
+            <div class="library-actions">
+              <button
+                class="btn btn-danger btn-small"
+                @click="deleteFromLibrary(flower.id, flower.name)"
+                title="删除"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 空状态 -->
+      <div v-else class="empty-state">
+        <div class="empty-state-icon">🌼</div>
+        <p>花库还是空的，添加一些常用的花朵吧！</p>
+      </div>
+    </div>
+
     <!-- 添加/编辑表单 -->
     <div v-show="activeTab === 'add'" class="tab-content add-form">
       <h2>{{ isEditing ? '编辑人员' : '添加新人员' }}</h2>
@@ -191,10 +245,10 @@
         <div class="form-group">
           <label>花朵列表</label>
           <div v-for="(flower, index) in form.flowers" :key="index" class="flowers-input">
-            <input
-              type="text"
+            <SearchableSelect
               v-model="flower.name"
-              placeholder="请输入花朵名称"
+              :options="flowerLibrary"
+              placeholder="请选择或搜索花朵"
             />
             <button
               type="button"
@@ -211,6 +265,7 @@
           >
             + 添加花朵
           </button>
+          <p class="help-text">💡 支持搜索过滤，也可以先去"花库管理"添加新花朵</p>
         </div>
 
         <div class="btn-group">
@@ -249,18 +304,16 @@
           <div class="quick-add-form">
             <label>添加新花朵</label>
             <div class="quick-add-input-group">
-              <input
-                type="text"
+              <SearchableSelect
                 v-model="newFlowerName"
-                placeholder="输入花朵名称"
-                @keyup.enter="quickAddFlower"
-                ref="quickAddInput"
+                :options="flowerLibrary"
+                placeholder="请选择或搜索花朵"
               />
               <button class="btn btn-primary" @click="quickAddFlower">
                 添加
               </button>
             </div>
-            <p class="help-text">💡 提示：系统会自动检查重复</p>
+            <p class="help-text">💡 支持搜索过滤，系统会自动检查重复</p>
           </div>
         </div>
       </div>
@@ -271,9 +324,13 @@
 <script>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import axios from 'axios'
+import SearchableSelect from './components/SearchableSelect.vue'
 
 export default {
   name: 'App',
+  components: {
+    SearchableSelect
+  },
   setup() {
     const persons = ref([])
     const loading = ref(false)
@@ -292,6 +349,10 @@ export default {
       name: '',
       flowers: []
     })
+    
+    // 花库相关状态
+    const flowerLibrary = ref([])
+    const newLibraryFlower = ref('')
 
     // Tab 相关状态
     const activeTab = ref('search')
@@ -412,6 +473,50 @@ export default {
         showError('获取数据失败: ' + (err.response?.data?.error || err.message))
       } finally {
         loading.value = false
+      }
+    }
+
+    // 获取花库
+    const fetchFlowerLibrary = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/flower-library`)
+        flowerLibrary.value = response.data
+      } catch (err) {
+        showError('获取花库失败: ' + (err.response?.data?.error || err.message))
+      }
+    }
+
+    // 添加花到花库
+    const addToLibrary = async () => {
+      const flowerName = newLibraryFlower.value.trim()
+      
+      if (!flowerName) {
+        showError('请输入花朵名称')
+        return
+      }
+
+      try {
+        await axios.post(`${API_BASE}/flower-library`, { name: flowerName })
+        showSuccess(`成功添加 "${flowerName}" 到花库！`)
+        newLibraryFlower.value = ''
+        await fetchFlowerLibrary()
+      } catch (err) {
+        showError(err.response?.data?.error || err.message)
+      }
+    }
+
+    // 从花库删除花
+    const deleteFromLibrary = async (id, name) => {
+      if (!confirm(`确定要从花库中删除 "${name}" 吗？\n\n注意：这不会影响已分配给人员的花朵。`)) {
+        return
+      }
+
+      try {
+        await axios.delete(`${API_BASE}/flower-library/${id}`)
+        showSuccess('删除成功！')
+        await fetchFlowerLibrary()
+      } catch (err) {
+        showError(err.response?.data?.error || err.message)
       }
     }
 
@@ -731,6 +836,7 @@ export default {
     // 组件挂载时获取数据
     onMounted(() => {
       fetchPersons()
+      fetchFlowerLibrary()
       // 添加点击外部关闭建议框的监听
       document.addEventListener('click', handleClickOutside)
     })
@@ -747,12 +853,16 @@ export default {
       form,
       isEditing,
       activeTab,
+      flowerLibrary,
+      newLibraryFlower,
       addFlowerToForm,
       removeFlowerFromForm,
       submitForm,
       editPerson,
       cancelEdit,
       deletePerson,
+      addToLibrary,
+      deleteFromLibrary,
       searchKeyword,
       searchResults,
       searchMessage,

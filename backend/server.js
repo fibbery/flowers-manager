@@ -24,6 +24,15 @@ db.run('PRAGMA foreign_keys = ON');
 
 // 创建表
 db.serialize(() => {
+  // 花库表（存储所有花朵类型）
+  db.run(`
+    CREATE TABLE IF NOT EXISTS flower_library (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS persons (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,6 +53,85 @@ db.serialize(() => {
 });
 
 // API 路由
+
+// ==================== 花库管理 API ====================
+
+// 获取所有花库
+app.get('/api/flower-library', (req, res) => {
+  db.all('SELECT * FROM flower_library ORDER BY name', [], (err, flowers) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(flowers);
+  });
+});
+
+// 添加花到花库
+app.post('/api/flower-library', (req, res) => {
+  const { name } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: '花朵名称不能为空' });
+  }
+  
+  db.run('INSERT INTO flower_library (name) VALUES (?)', [name.trim()], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ error: '该花朵已存在于花库中' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    
+    res.status(201).json({
+      id: this.lastID,
+      name: name.trim()
+    });
+  });
+});
+
+// 删除花库中的花
+app.delete('/api/flower-library/:id', (req, res) => {
+  db.run('DELETE FROM flower_library WHERE id = ?', [req.params.id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: '花朵不存在' });
+    }
+    
+    res.json({ message: '删除成功' });
+  });
+});
+
+// 更新花库中的花
+app.put('/api/flower-library/:id', (req, res) => {
+  const { name } = req.body;
+  
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: '花朵名称不能为空' });
+  }
+  
+  db.run('UPDATE flower_library SET name = ? WHERE id = ?', [name.trim(), req.params.id], function(err) {
+    if (err) {
+      if (err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ error: '该花朵名称已存在' });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: '花朵不存在' });
+    }
+    
+    res.json({
+      id: parseInt(req.params.id),
+      name: name.trim()
+    });
+  });
+});
+
+// ==================== 人员管理 API ====================
 
 // 获取所有人员及其花朵
 app.get('/api/persons', (req, res) => {
