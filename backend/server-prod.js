@@ -29,12 +29,21 @@ db.run('PRAGMA foreign_keys = ON');
 
 // 创建表
 db.serialize(() => {
-  // 花库表（存储所有花朵类型）
+  // 花库表（存储所有花朵类型 - 用于下拉选择）
   db.run(`
     CREATE TABLE IF NOT EXISTS flower_library (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 花坊配置表（存储花坊名单 - 用于对比）
+  db.run(`
+    CREATE TABLE IF NOT EXISTS garden_config (
+      id INTEGER PRIMARY KEY,
+      flower_list TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -134,6 +143,45 @@ app.put('/api/flower-library/:id', (req, res) => {
       name: name.trim()
     });
   });
+});
+
+// ==================== 花坊管理 API ====================
+
+// 获取花坊名单
+app.get('/api/garden', (req, res) => {
+  db.get('SELECT * FROM garden_config WHERE id = 1', [], (err, config) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({
+      flower_list: config ? config.flower_list : ''
+    });
+  });
+});
+
+// 更新花坊名单
+app.post('/api/garden', (req, res) => {
+  const { flower_list } = req.body;
+  
+  if (flower_list === undefined || flower_list === null) {
+    return res.status(400).json({ error: '花朵名单不能为空' });
+  }
+  
+  db.run(
+    `INSERT OR REPLACE INTO garden_config (id, flower_list, updated_at) 
+     VALUES (1, ?, CURRENT_TIMESTAMP)`,
+    [flower_list.trim()],
+    function(err) {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      
+      res.json({
+        flower_list: flower_list.trim(),
+        message: '花坊名单更新成功'
+      });
+    }
+  );
 });
 
 // ==================== 人员管理 API ====================

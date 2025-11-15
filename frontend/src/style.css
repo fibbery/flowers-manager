@@ -833,6 +833,342 @@ select.flower-select option {
   gap: 8px;
 }
 
+/* 花坊管理样式 */
+.flower-garden-section {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.flower-garden-section h2 {
+  color: #667eea;
+  margin-bottom: 30px;
+  font-size: 1.8em;
+  text-align: center;
+}
+
+/* 花坊名单录入区域 */
+.garden-input-section {
+  background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
+  padding: 25px;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.garden-input-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.garden-input-section h3 {
+  color: #667eea;
+  font-size: 1.3em;
+  margin: 0;
+}
+
+.garden-hint {
+  color: #6c757d;
+  font-size: 14px;
+  margin: 0 0 15px 0;
+  font-style: italic;
+}
+
+.garden-textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.3s ease;
+  resize: vertical;
+  margin-bottom: 15px;
+  line-height: 1.6;
+}
+
+.garden-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.textarea-disabled {
+  background: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.garden-edit-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.garden-edit-actions .btn {
+  flex: 1;
+}
+
+.btn-large {
+  padding: 14px 30px;
+  font-size: 17px;
+  width: 100%;
+}
+
+/* 待分配区域 */
+.unowned-section {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffebeb 100%);
+  border: 2px solid #ff7875;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+}
+
+.unowned-header h3 {
+  color: #cf1322;
+  font-size: 1.3em;
+  margin: 0 0 8px 0;
+}
+
+.result-count-warning {
+  color: #ff4d4f;
+  font-size: 0.9em;
+}
+
+.unowned-desc {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin: 0 0 15px 0;
+}
+
+.unowned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.unowned-card {
+  background: white;
+  border: 2px dashed #ffa39e;
+  border-radius: 8px;
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.unowned-card:hover {
+  border-color: #ff4d4f;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.2);
+  transform: translateY(-2px);
+}
+
+.unowned-flower-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.unowned-badge {
+  background: #ff4d4f;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* 已分配区域 */
+.owned-section {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0fff4 100%);
+  border: 2px solid #b7eb8f;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 25px;
+}
+
+.owned-header h3 {
+  color: #389e0d;
+  font-size: 1.3em;
+  margin: 0 0 8px 0;
+}
+
+.result-count-success {
+  color: #52c41a;
+  font-size: 0.9em;
+}
+
+.owned-desc {
+  color: #8c8c8c;
+  font-size: 14px;
+  margin: 0 0 15px 0;
+}
+
+.owned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.owned-card {
+  background: white;
+  border: 2px solid #95de64;
+  border-radius: 8px;
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.owned-card:hover {
+  border-color: #52c41a;
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.2);
+  transform: translateY(-2px);
+}
+
+.owned-flower-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.owned-badge {
+  background: #52c41a;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.owned-badge-btn {
+  background: #52c41a;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.owned-badge-btn:hover {
+  background: #389e0d;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+}
+
+/* 统计信息 */
+.garden-summary {
+  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.garden-summary h3 {
+  color: #667eea;
+  font-size: 1.2em;
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.summary-item {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  border: 1px solid #e9ecef;
+}
+
+.summary-label {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.summary-value.total {
+  color: #667eea;
+}
+
+.summary-value.owned {
+  color: #52c41a;
+}
+
+.summary-value.unowned {
+  color: #ff4d4f;
+}
+
+.summary-value.rate {
+  color: #1890ff;
+}
+
+.help-text-secondary {
+  color: #8c8c8c;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+/* 拥有者列表弹窗 */
+.modal-content-small {
+  max-width: 400px;
+}
+
+.owners-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.owner-item {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.owner-item:hover {
+  background: #e9ecef;
+  border-color: #667eea;
+}
+
+.owner-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* 密码验证弹窗 */
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.password-input {
+  width: 100%;
+}
+
 
 /* 移动端适配 */
 @media (max-width: 768px) {
@@ -963,6 +1299,30 @@ select.flower-select option {
 
   .library-flower-name {
     font-size: 15px;
+  }
+
+  /* 花坊管理移动端优化 */
+  .garden-input-section {
+    padding: 15px;
+  }
+
+  .garden-textarea {
+    font-size: 16px;
+    padding: 12px;
+  }
+
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .summary-value {
+    font-size: 24px;
+  }
+
+  .unowned-grid,
+  .owned-grid {
+    grid-template-columns: 1fr;
   }
 
   /* 下拉建议移动端优化 */

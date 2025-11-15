@@ -33,6 +33,13 @@
       >
         🌺 花库管理
       </button>
+      <button 
+        class="tab-button" 
+        :class="{ active: activeTab === 'garden' }"
+        @click="activeTab = 'garden'"
+      >
+        🏡 花坊管理
+      </button>
     </div>
 
     <!-- 查询区域 -->
@@ -227,6 +234,137 @@
       </div>
     </div>
 
+    <!-- 花坊管理 -->
+    <div v-show="activeTab === 'garden'" class="tab-content flower-garden-section">
+      <h2>🏡 花坊管理</h2>
+      
+      <!-- 花坊名单录入 -->
+      <div class="garden-input-section">
+        <div class="garden-input-header">
+          <h3>📝 花坊名单</h3>
+          <button 
+            v-if="!isEditingGardenList && gardenFlowerList"
+            class="btn btn-warning btn-small" 
+            @click="startEditGardenList"
+          >
+            ✏️ 编辑名单
+          </button>
+        </div>
+        <p class="garden-hint">请输入花朵名称，用逗号分隔（如：玫瑰,百合,栀子花）</p>
+        <textarea
+          v-model="gardenFlowerList"
+          :disabled="!isEditingGardenList"
+          placeholder="玫瑰,百合,栀子花,太阳花,菊花,康乃馨,郁金香,牡丹,茉莉花,桂花"
+          class="garden-textarea"
+          :class="{ 'textarea-disabled': !isEditingGardenList }"
+          rows="4"
+        ></textarea>
+        <div v-if="isEditingGardenList" class="garden-edit-actions">
+          <button class="btn btn-primary btn-large" @click="updateGardenList">
+            💾 保存花坊名单
+          </button>
+          <button 
+            v-if="gardenFlowerList" 
+            class="btn btn-secondary btn-large" 
+            @click="cancelEditGardenList"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+
+      <!-- 待分配的花朵（对比结果） -->
+      <div v-if="unownedGardenFlowers.length > 0" class="unowned-section">
+        <div class="unowned-header">
+          <h3>
+            ❌ 待分配的花朵 
+            <span class="result-count-warning">（共 {{ unownedGardenFlowers.length }} 种）</span>
+          </h3>
+          <p class="unowned-desc">💡 这些花在花坊中有，但还没有任何人拥有</p>
+        </div>
+        <div class="unowned-grid">
+          <div v-for="(flower, index) in unownedGardenFlowers" :key="index" class="unowned-card">
+            <span class="unowned-flower-name">🌺 {{ flower }}</span>
+            <span class="unowned-badge">待分配</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 已分配的花朵 -->
+      <div v-if="ownedGardenFlowers.length > 0" class="owned-section">
+        <div class="owned-header">
+          <h3>
+            ✅ 已分配的花朵 
+            <span class="result-count-success">（共 {{ ownedGardenFlowers.length }} 种）</span>
+          </h3>
+          <p class="owned-desc">💡 这些花至少有一个人拥有</p>
+        </div>
+        <div class="owned-grid">
+          <div v-for="(flower, index) in ownedGardenFlowers" :key="index" class="owned-card">
+            <span class="owned-flower-name">🌺 {{ flower }}</span>
+            <button 
+              class="owned-badge-btn" 
+              @click="showFlowerOwners(flower)"
+              :title="'点击查看拥有者'"
+            >
+              ✓ {{ getFlowerOwnersCount(flower) }}人
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 统计信息 -->
+      <div v-if="gardenFlowerArray.length > 0" class="garden-summary">
+        <h3>📊 统计信息</h3>
+        <div class="summary-stats">
+          <div class="summary-item">
+            <div class="summary-label">花坊总数</div>
+            <div class="summary-value total">{{ gardenFlowerArray.length }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">已分配</div>
+            <div class="summary-value owned">{{ ownedGardenFlowers.length }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">待分配</div>
+            <div class="summary-value unowned">{{ unownedGardenFlowers.length }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">分配率</div>
+            <div class="summary-value rate">{{ gardenCompletionRate }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 空状态 -->
+      <div v-if="gardenFlowerArray.length === 0" class="empty-state">
+        <div class="empty-state-icon">🏡</div>
+        <p>还没有录入花坊名单，在上方输入框录入吧！</p>
+        <p class="help-text-secondary">格式示例：玫瑰,百合,栀子花,太阳花</p>
+      </div>
+    </div>
+
+    <!-- 花朵拥有者弹窗 -->
+    <div v-if="showOwnersModal" class="modal-overlay" @click="closeOwnersModal">
+      <div class="modal-content modal-content-small" @click.stop>
+        <div class="modal-header">
+          <h3>🌺 {{ currentFlowerName }} 的拥有者</h3>
+          <button class="close-btn" @click="closeOwnersModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="owners-list">
+            <div 
+              v-for="(owner, index) in currentFlowerOwnersList" 
+              :key="index" 
+              class="owner-item"
+            >
+              <span class="owner-name">👤 {{ owner }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 添加/编辑表单 -->
     <div v-show="activeTab === 'add'" class="tab-content add-form">
       <h2>{{ isEditing ? '编辑人员' : '添加新人员' }}</h2>
@@ -353,6 +491,17 @@ export default {
     // 花库相关状态
     const flowerLibrary = ref([])
     const newLibraryFlower = ref('')
+    
+    // 花坊相关状态
+    const gardenFlowerList = ref('')
+    const isEditingGardenList = ref(true)
+    const originalGardenList = ref('')
+    
+    // 花朵拥有者弹窗状态
+    const showOwnersModal = ref(false)
+    const currentFlowerName = ref('')
+    const currentFlowerOwnersList = ref([])
+    
 
     // Tab 相关状态
     const activeTab = ref('search')
@@ -519,6 +668,118 @@ export default {
         showError(err.response?.data?.error || err.message)
       }
     }
+
+    // 获取花坊名单
+    const fetchGarden = async () => {
+      try {
+        const response = await axios.get(`${API_BASE}/garden`)
+        gardenFlowerList.value = response.data.flower_list || ''
+        originalGardenList.value = response.data.flower_list || ''
+        // 如果有名单则锁定编辑
+        isEditingGardenList.value = !response.data.flower_list
+      } catch (err) {
+        showError('获取花坊名单失败: ' + (err.response?.data?.error || err.message))
+      }
+    }
+
+    // 开始编辑花坊名单
+    const startEditGardenList = () => {
+      isEditingGardenList.value = true
+    }
+
+    // 取消编辑花坊名单
+    const cancelEditGardenList = () => {
+      gardenFlowerList.value = originalGardenList.value
+      isEditingGardenList.value = false
+    }
+
+    // 更新花坊名单
+    const updateGardenList = async () => {
+      try {
+        await axios.post(`${API_BASE}/garden`, {
+          flower_list: gardenFlowerList.value
+        })
+        showSuccess('花坊名单保存成功！')
+        originalGardenList.value = gardenFlowerList.value
+        isEditingGardenList.value = false
+      } catch (err) {
+        showError(err.response?.data?.error || err.message)
+      }
+    }
+
+    // 显示花朵拥有者列表
+    const showFlowerOwners = (flowerName) => {
+      currentFlowerName.value = flowerName
+      currentFlowerOwnersList.value = persons.value
+        .filter(person => person.flowers && person.flowers.some(f => f.name === flowerName))
+        .map(p => p.name)
+      showOwnersModal.value = true
+    }
+
+    // 关闭拥有者弹窗
+    const closeOwnersModal = () => {
+      showOwnersModal.value = false
+      currentFlowerName.value = ''
+      currentFlowerOwnersList.value = []
+    }
+
+    // 解析花坊名单为数组
+    const gardenFlowerArray = computed(() => {
+      if (!gardenFlowerList.value) return []
+      return gardenFlowerList.value
+        .split(/[,，]/)
+        .map(name => name.trim())
+        .filter(name => name.length > 0)
+    })
+
+    // 收集所有人拥有的花朵（去重）
+    const allOwnedFlowerNames = computed(() => {
+      const ownedSet = new Set()
+      persons.value.forEach(person => {
+        if (person.flowers) {
+          person.flowers.forEach(flower => {
+            ownedSet.add(flower.name)
+          })
+        }
+      })
+      return ownedSet
+    })
+
+    // 计算未被拥有的花坊花朵
+    const unownedGardenFlowers = computed(() => {
+      return gardenFlowerArray.value.filter(flower => 
+        !allOwnedFlowerNames.value.has(flower)
+      )
+    })
+
+    // 计算已被拥有的花坊花朵
+    const ownedGardenFlowers = computed(() => {
+      return gardenFlowerArray.value.filter(flower => 
+        allOwnedFlowerNames.value.has(flower)
+      )
+    })
+
+    // 获取拥有某朵花的人员列表
+    const getFlowerOwners = (flowerName) => {
+      const owners = persons.value
+        .filter(person => person.flowers && person.flowers.some(f => f.name === flowerName))
+        .map(p => p.name)
+      return owners.join('、')
+    }
+
+    // 获取拥有某朵花的人数
+    const getFlowerOwnersCount = (flowerName) => {
+      return persons.value.filter(person => 
+        person.flowers && person.flowers.some(f => f.name === flowerName)
+      ).length
+    }
+
+    // 计算花坊完成率
+    const gardenCompletionRate = computed(() => {
+      if (gardenFlowerArray.value.length === 0) return 0
+      const rate = (ownedGardenFlowers.value.length / gardenFlowerArray.value.length) * 100
+      return Math.round(rate)
+    })
 
     // 添加花朵到表单
     const addFlowerToForm = () => {
@@ -837,6 +1098,7 @@ export default {
     onMounted(() => {
       fetchPersons()
       fetchFlowerLibrary()
+      fetchGarden()
       // 添加点击外部关闭建议框的监听
       document.addEventListener('click', handleClickOutside)
     })
@@ -855,6 +1117,15 @@ export default {
       activeTab,
       flowerLibrary,
       newLibraryFlower,
+      gardenFlowerList,
+      gardenFlowerArray,
+      unownedGardenFlowers,
+      ownedGardenFlowers,
+      gardenCompletionRate,
+      isEditingGardenList,
+      showOwnersModal,
+      currentFlowerName,
+      currentFlowerOwnersList,
       addFlowerToForm,
       removeFlowerFromForm,
       submitForm,
@@ -863,6 +1134,13 @@ export default {
       deletePerson,
       addToLibrary,
       deleteFromLibrary,
+      updateGardenList,
+      startEditGardenList,
+      cancelEditGardenList,
+      showFlowerOwners,
+      closeOwnersModal,
+      getFlowerOwners,
+      getFlowerOwnersCount,
       searchKeyword,
       searchResults,
       searchMessage,
